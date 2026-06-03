@@ -1,358 +1,421 @@
-# DDAG-Net: Dual-Domain Adaptive Decoupling and Artery-Guided Network for Pulmonary Embolism Segmentation
+# RSMIA-Net
 
-> A novel 3D segmentation framework combining Transformer, quadruplet attention, and DA attention for pulmonary embolism detection in CTPA images.
+**RSMIA-Net: Residual Skip-enhanced Network with Multi-dimensional Interactive Attention for Pulmonary Embolism Detection and Segmentation**
+
+> A 3D pulmonary embolism segmentation and detection framework with attention-guided residual skip enhancement, multi-dimensional interactive attention, context-detail balanced ASPP fusion, and Dual Attention Transformer bottleneck modeling.
 
 ---
 
 ## 📌 Overview
 
-DDAG-Net is a 3D medical image segmentation framework designed for **pulmonary embolism (PE) segmentation** in **CT pulmonary angiography (CTPA)**. The network integrates multiple advanced attention mechanisms and a Transformer architecture to address the key challenges in PE analysis:
+Pulmonary embolism (PE) is a life-threatening condition that seriously endangers human health. Accurate PE segmentation and detection in **CT pulmonary angiography (CTPA)** remain challenging because emboli are often small, low-contrast, and located inside complex pulmonary vascular structures.
 
-- **Small embolism targets** in pulmonary arteries
-- **Complex 3D vascular structures**
-- **Severe class imbalance** between emboli and background
-- **Weak boundary representation** of emboli
-- **Long-range dependency** modeling in 3D space
+To address the semantic gap between high-level and low-level features and the insufficient spatial context modeling in PE segmentation, we propose **RSMIA-Net**, a **Residual Skip-enhanced Network with Multi-dimensional Interactive Attention**.
+
+RSMIA-Net is built upon a 3D U-Net style encoder-decoder architecture and introduces several complementary modules:
+
+- Attention-Guided Residual Skip (AGRS)
+- Residual Skip Enhancement (RSE)
+- Multi-dimensional Interactive Quadruplet Attention (MIQA)
+- Context-Detail Balanced ASPP (CDB-ASPP)
+- Dual Attention (DA) Transformer bottleneck
+- Auxiliary vessel-guided feature modulation
+
+The network jointly enhances local detail representation, global context modeling, and vessel-aware PE localization.
 
 ---
 
 ## 🧠 Network Architecture
 
-The architecture is built upon an improved 3D U-Net with the following key components:
+The overall architecture of RSMIA-Net is illustrated below:
 
-### Encoder Path
-
-- **Input**: 3D CTPA volumes (single channel)
-- **Stem**: Initial convolution and depthwise convolution
-- **Four encoding stages** with progressive channel expansion (64→96→128→160)
-- Each stage includes:
-  - Basic convolutional blocks
-  - Downsampling operations
-  - DA attention modules (stages 3 and 4)
-
-### Bottleneck
-
-- **Transformer module**: 6-layer encoder-decoder with 8-head attention
-- **3D positional encoding** for spatial awareness
-- **ASPP module** for multi-scale feature extraction
-
-### Decoder Path
-
-- Progressive upsampling with skip connections
-- **Quadruplet attention** at each decoding stage
-- **DA attention** for enhanced feature representation
-- Multi-level feature fusion
-
-### Output Heads
-
-- **Vessel segmentation head**: Auxiliary task for vascular structure
-- **PE segmentation head**: Main task for embolism detection
+```text
+Input CTPA Volume
+   │
+CT Channel Selection
+   │
+Stem Feature Extraction
+   ├── 3D ConvBlock
+   └── Downsampling ConvBlock
+   │
+Encoder
+   ├── Stage 1: Low-level Feature Extraction
+   ├── Stage 2: Hierarchical Feature Extraction
+   ├── Stage 3: Deep Semantic Feature Extraction
+   └── Stage 4: Bottleneck Feature Extraction
+   │
+Bottleneck
+   ├── Dual Attention Feature Refinement
+   ├── 3D Positional Encoding
+   └── Transformer Global Context Modeling
+   │
+Decoder
+   ├── Stage 3 Feature Recovery
+   │   ├── Upsampling
+   │   ├── Dual Attention Skip Refinement
+   │   └── Skip Concatenation
+   │
+   ├── Stage 2 Feature Recovery
+   │   ├── Residual Skip Enhancement
+   │   ├── Multi-dimensional Interactive Quadruplet Attention
+   │   └── Skip Concatenation
+   │
+   └── Stage 1 Feature Recovery
+       ├── Residual Skip Enhancement
+       ├── Multi-dimensional Interactive Quadruplet Attention
+       └── Skip Concatenation
+   │
+Context-Detail Balanced ASPP
+   ├── Multi-scale Dilated Convolution Branches
+   ├── Context Aggregation
+   └── Detail-preserving Feature Fusion
+   │
+Auxiliary Vessel Segmentation Branch
+   ├── Vessel Prediction
+   ├── Downsampled Vessel Guidance Map
+   └── Feature-wise Vessel-guided Modulation
+   │
+Final PE Segmentation Head
+   │
+PE Segmentation Output
+```
 
 ---
 
 ## ✨ Key Innovations
 
-### 1️⃣ Transformer with 3D Positional Encoding
+### 1️⃣ Attention-Guided Residual Skip (AGRS)
 
-Custom 3D positional encoding integrated with a standard Transformer architecture:
+The Attention-Guided Residual Skip module is designed to reduce the semantic gap between encoder and decoder features.
 
-- Captures long-range spatial dependencies
-- Preserves 3D structural information
-- Enables global context understanding
+AGRS consists of two parts:
+
+- Residual Skip Enhancement (RSE)
+- Multi-dimensional Interactive Quadruplet Attention (MIQA)
+
+This module allows deeper semantic information to enhance shallow feature representations before decoder fusion.
+
+---
+
+### 2️⃣ Residual Skip Enhancement (RSE)
+
+The RSE structure introduces top-down multiplicative guidance and residual fusion into skip connections.
+
+In the implementation, high-level skip modulation is performed as:
 
 ```python
-self.transformer = Transformer(
-    d_model=128, nhead=8,
-    num_encoder_layers=6, num_decoder_layers=6,
-    dim_feedforward=2048, dropout=0.1
+s3 = self.block22_up_1(x3)
+s3 = x2 * s3
+x2 = x2 + s3
+
+s2 = self.block11_up_1(x2)
+s2 = x1 * s2
+x1 = x1 + s2
+```
+
+This design has three effects:
+
+- Transfers deep semantic cues to shallow encoder features
+- Preserves original low-level details through residual fusion
+- Improves semantic consistency during encoder-decoder feature fusion
+
+---
+
+### 3️⃣ Multi-dimensional Interactive Quadruplet Attention (MIQA)
+
+MIQA captures interdependencies between channel and spatial dimensions from four complementary perspectives.
+
+In the current network, this mechanism is implemented through `QuadrupletAttention` modules:
+
+- `att2` refines intermediate skip features
+- `att1` refines shallow skip features
+- Spatial-channel interactions are enhanced before skip concatenation
+- Fine-grained PE region features are strengthened through spatial interaction
+
+This improves the representation of small emboli and ambiguous boundary regions.
+
+---
+
+### 4️⃣ Context-Detail Balanced ASPP (CDB-ASPP)
+
+CDB-ASPP fuses contextual and detailed information through multi-branch atrous convolution.
+
+The implementation uses `ASPP4` after concatenating multi-scale decoder features:
+
+```python
+x = self.aspp(torch.cat([x, x2, x3, x4], dim=1))
+```
+
+The module aggregates features from multiple decoder resolutions and uses five dilation settings:
+
+```python
+dilations=[1, 3, 5, 7, 9]
+```
+
+This improves PE segmentation by balancing:
+
+- Local boundary detail
+- Medium-scale embolus morphology
+- Large-scale vascular context
+- Global-local feature enhancement
+
+---
+
+### 5️⃣ Dual Attention Transformer Bottleneck
+
+RSMIA-Net incorporates a Dual Attention (DA) Transformer module at the bottleneck of the U-Net.
+
+The bottleneck first applies dual attention:
+
+```python
+x = self.DA4(x)
+```
+
+Then 3D positional encoding is generated and passed into the Transformer:
+
+```python
+pos_embed = self.generate_positional_encoding_3d(
+    depth, height, width, channels, batch_size
 )
-### 2️⃣ Quadruplet Attention Mechanism
+hs, memory = self.transformer(src, mask, query_embed, pos_embed)
+```
 
-Four attention modules strategically placed in the decoder:
+This module enhances global feature modeling and compensates for the limited receptive field of pure convolutional blocks.
 
-- **Attention 1-3**: Applied to skip connections
-- **Attention 4**: Applied to multi-scale feature fusion
+---
 
-Enhances feature discrimination in critical regions.
+### 6️⃣ Vessel-guided PE Segmentation
 
-### 3️⃣ DA Attention (Dual Attention Network)
-
-Integrated at multiple scales:
-
-- **DA3**: Applied to stage 3 features (128 channels)
-- **DA4**: Applied to stage 4 features (160 channels)
-
-Combines position and channel attention for comprehensive feature refinement.
-
-### 4️⃣ Vessel-Guided Feature Modulation
-
-- Auxiliary vessel segmentation provides structural priors
-- Vessel predictions modulate PE features through spatial attention
-- Enhances embolism localization within vascular structures
+The model includes an auxiliary vessel segmentation branch to provide vascular structure guidance.
 
 ```python
-segv_down = F.max_pool3d(segv, kernel_size=2, stride=2).repeat(1, x.shape[1], 1, 1, 1)
-x = x * segv_down  # Vessel-guided feature modulation
-5️⃣ Multi-Scale ASPP Fusion
+segv = self.segheadv(x)
+segv_down = F.max_pool3d(segv, kernel_size=2, stride=2).repeat(
+    1, x.shape[1], 1, 1, 1
+)
+x = x * segv_down
+seg = self.seghead(x)
+```
 
-Atrous Spatial Pyramid Pooling with multiple dilation rates:
+The auxiliary vessel prediction is downsampled and used to modulate the final feature map. This helps the PE segmentation branch focus on anatomically relevant vascular regions.
 
-- Dilations: [1, 3, 5, 7, 9]
-- Fuses features from four different scales
-- Captures emboli of varying sizes
+---
+
+## 📈 Reported Performance
+
+On the **CAD-PE dataset**, RSMIA-Net achieves strong performance in both PE detection and segmentation.
+
+### PE Detection
+
+- Sensitivity: `0.904`
+- FROC score: `0.798`
+- AUC: `0.862`
+
+### PE Segmentation
+
+- Dice coefficient: `89.7%`
+
+These results indicate that RSMIA-Net improves PE localization accuracy and detection sensitivity compared with other state-of-the-art methods.
 
 ---
 
 ## 📂 Project Structure
 
+The following is a recommended GitHub project layout for this model:
+
 ```bash
-DDAG-Net/
+RSMIA-Net/
 ├── models/
-│   ├── DDAG_Net.py           # Main network architecture
-│   ├── StdBlocks.py          # Standard building blocks
-│   ├── Attention.py          # Quadruplet attention module
-│   ├── block1.py             # DANet attention module
-│   └── transformer3d.py      # 3D Transformer implementation
+│   ├── RSMIA_Net.py
+│   ├── StdBlocks.py
+│   ├── Attention.py
+│   ├── block1.py
+│   └── transformer3d.py
 │
 ├── datasets/
-│   ├── dataset.py            # CTPA dataset loader
-│   └── transforms.py         # 3D data augmentations
+│   ├── dataset.py
+│   └── transforms.py
 │
 ├── utils/
-│   ├── losses.py             # Segmentation losses
-│   ├── metrics.py            # Evaluation metrics
-│   └── visualization.py      # 3D visualization tools
+│   ├── losses.py
+│   ├── metrics.py
+│   └── visualization.py
 │
-├── configs/
-│   └── ddag_net_config.yaml  # Configuration file
-│
-├── checkpoints/              # Model checkpoints
-├── results/                  # Segmentation results
-├── logs/                     # Training logs
-│
-├── train.py                  # Training script
-├── test.py                   # Testing script
-├── inference.py              # Inference script
-├── requirements.txt          # Dependencies
-└── README.md                 # This file
+├── checkpoints/
+├── results/
+├── train.py
+├── test.py
+├── inference.py
+├── requirements.txt
+└── README.md
+```
+
+---
+
 ## ⚙️ Requirements
 
 ### Environment
 
-- Python >= 3.8
-- PyTorch >= 1.9
-- CUDA >= 11.0
+- Python >= 3.9
+- PyTorch >= 2.0
+- CUDA >= 11.8
 
 ### Install Dependencies
 
 ```bash
+pip install -r requirements.txt
+```
+
 ### Main Dependencies
 
 ```text
-torch>=1.9.0
-numpy>=1.19.0
-scikit-image>=0.18.0
-scipy>=1.5.0
-SimpleITK>=2.0.0
-tqdm>=4.62.0
-medpy>=0.4.0
+torch
+numpy
+```
 
+Common dependencies for medical image preprocessing and evaluation may include:
 
-###🚀 Training
+```text
+scipy
+SimpleITK
+scikit-image
+tqdm
+```
 
-##Configuration
-Create a configuration file or modify the training script with your settings:
+---
 
-```yaml
-# Example config.yaml
-model:
-  n_channels: 1
-  n_classes: 1
-  en_blocks: [2, 3, 3, 3]
-  de_blocks: [2, 2, 2]
-  n_filters: [64, 96, 128, 160]
-  stem_filters: 32
-  aspp_filters: 32
-  norm_type: 'groupnorm'
-  act_type: 'ReLU'
+## 🚀 Training
 
-training:
-  batch_size: 2
-  learning_rate: 1e-4
-  epochs: 300
-  weight_decay: 1e-5
+If the repository is organized with a standard training entry script, training can be started as:
 
-data:
-  patch_size: [64, 128, 128]
-  stride: [48, 96, 96]
-  augmentation: true
-Start Training
-bash
-python train.py \
-  --data_root /path/to/ctpa/data \
-  --batch_size 2 \
-  --lr 1e-4 \
-  --epochs 300 \
-  --gpu 0
-Multi-GPU Training
+```bash
+python train.py
+```
+
+Example:
+
 ```bash
 python train.py \
-  --data_root /path/to/ctpa/data \
-  --batch_size 4 \
-  --lr 2e-4 \
-  --gpu 0,1 \
-  --distributed
-🧪 Testing
-Evaluate model performance on test set:
+  --batch_size 2 \
+  --lr 1e-4 \
+  --epochs 300
+```
 
-bash
-python test.py \
-  --data_root /path/to/test/data \
-  --checkpoint checkpoints/best_model.pth \
-  --output_dir results/
-🔮 Inference
-###Run inference on single CTPA volume:
+Elastic deformation-based data augmentation can be used during training to improve robustness and training efficiency on limited datasets.
+
+---
+
+## 🧪 Inference
 
 ```bash
 python inference.py \
-  --input /path/to/ctpa/volume.nii.gz \
-  --checkpoint checkpoints/best_model.pth \
-  --output /path/to/output.nii.gz \
-  --save_vessels  # Optional: save vessel segmentation
-## 📊 Model Architecture Details
+  --ckpt checkpoints/rsmia_net.pth
+```
 
-### Encoder Configuration
+---
 
-```text
-| Stage   | Input Channels | Output Channels | Blocks | Attention |
-|---------|---------------|----------------|--------|-----------|
-| Stem    | 1             | 32             | 2      | -         |
-| Stage1  | 32            | 64             | 2      | -         |
-| Stage2  | 64            | 96             | 3      | -         |
-| Stage3  | 96            | 128            | 3      | DA3       |
-| Stage4  | 128           | 160            | 3      | DA4       |
-### Decoder Configuration
+## 📊 Evaluation Metrics
 
-| Stage | Input Channels | Output Channels | Attention |
-|-------|---------------|----------------|-----------|
-| Dec1  | 160+128       | 128            | Att3      |
-| Dec2  | 128+96        | 96             | Att2      |
-| Dec3  | 96+64         | 64             | Att1      |
-| Final | 64+32+16+8    | 32             | Att4      |
+The following metrics are used or commonly reported for PE detection and segmentation:
 
-### Transformer Parameters
+- Dice Similarity Coefficient (DSC)
+- Sensitivity
+- FROC score
+- AUC
+- Intersection over Union (IoU)
+- 95% Hausdorff Distance (HD95)
 
-| Parameter              | Value |
-|-----------------------|-------|
-| d_model               | 128   |
-| nhead                 | 8     |
-| Encoder layers        | 6     |
-| Decoder layers        | 6     |
-| Feedforward dimension | 2048  |
-| Dropout               | 0.1   |
+---
 
-## 📈 Loss Functions
+## 🗃️ Dataset
 
-The total loss combines multiple components:
+RSMIA-Net is designed for **CT pulmonary angiography (CTPA)** datasets, including CAD-PE style PE segmentation and detection data.
+
+Typical preprocessing includes:
+
+- Resampling
+- Intensity normalization
+- Lung or vessel region cropping
+- 3D patch extraction
+- Elastic deformation augmentation
+
+---
+
+## 🔥 Features
+
+- 3D end-to-end PE segmentation
+- Residual skip-enhanced encoder-decoder fusion
+- Multi-dimensional interactive attention
+- Dual Attention Transformer bottleneck
+- Context-detail balanced ASPP fusion
+- Auxiliary vessel-guided feature modulation
+- Strong PE detection and segmentation performance on CAD-PE
+
+---
+
+## 📤 Model Outputs
+
+The current network `forward()` returns:
 
 ```python
-L_total = L_dice + L_bce + λ₁ * L_vessel
-Dice Loss: Primary segmentation loss
-
-BCE Loss: Pixel-wise binary classification
-
-Vessel Loss: Auxiliary vessel segmentation
-
-Default weights:
-
-λ₁ = 0.5 (vessel segmentation)
-
-📊 Evaluation Metrics
-The framework reports the following metrics:
-
-DSC (Dice Similarity Coefficient)
-
-IoU (Intersection over Union)
-
-Sensitivity (True Positive Rate)
-
-Specificity (True Negative Rate)
-
-HD95 (95% Hausdorff Distance)
-
-ASSD (Average Symmetric Surface Distance)
-
-🗃️ Dataset Preparation
-Required Format
-text
-data/
-├── train/
-│   ├── volume_001.nii.gz
-│   ├── volume_001_label.nii.gz
-│   └── ...
-├── val/
-│   ├── volume_001.nii.gz
-│   ├── volume_001_label.nii.gz
-│   └── ...
-└── test/
-    ├── volume_001.nii.gz
-    ├── volume_001_label.nii.gz
-    └── ...
-### Preprocessing Steps
-
-```text
-1. Resampling: Uniform spacing (1.5×1.5×1.5 mm³)
-2. Intensity normalization: Z-score normalization
-3. Cropping: Remove background around lungs
-4. Patch extraction: 64×128×128 patches with 48×96×96 stride
-5. Augmentation: Random flips, rotations, elastic deformations
-
-## 🔥 Key Features
-
-- ✅ **Full 3D processing** - Preserves volumetric information
-- ✅ **Transformer backbone** - Global context modeling
-- ✅ **Dual attention mechanisms** - Quadruplet + DA attention
-- ✅ **Multi-scale ASPP** - Handles variable embolism sizes
-- ✅ **Vessel-guided modulation** - Structural prior incorporation
-- ✅ **Group normalization** - Batch size independent
-- ✅ **Memory efficient** - Optimized for 3D volumes
-- ✅ **End-to-end training** - Joint vessel and PE segmentation
-
-📤 Model Outputs
-The network forward() returns:
-
-python
 {
-    "segs": seg,      # Final PE segmentation
-    "segvs": segv     # Vessel segmentation branch output
+    "segs": seg,
+    "segvs": segv,
 }
+```
+
 Where:
 
-segs denotes the final PE segmentation
+- `segs` denotes the final PE segmentation output
+- `segvs` denotes the auxiliary vessel segmentation output
 
-segvs denotes the vessel segmentation branch output
+---
 
-###📦 Code Availability
-This repository currently serves as the official project page for DDAG-Net.
+## 🧩 Core Implementation
 
-###🚧 The full source code, pretrained models, and training scripts will be released after the paper is officially accepted.
+The core model is implemented as:
 
-This ensures compliance with journal and conference submission policies.
+```python
+class Net(nn.Module):
+    def __init__(
+        self,
+        n_channels=1,
+        n_classes=1,
+        en_blocks=[2, 3, 3, 3],
+        de_blocks=[2, 2, 2],
+        n_filters=[64, 96, 128, 128],
+        stem_filters=32,
+        aspp_filters=32,
+        norm_type="groupnorm",
+        head_norm="groupnorm",
+        act_type="ReLU",
+    ):
+        ...
+```
 
-###📝 Citation
-If you find this work useful for your research, please cite:
+Default configuration:
 
-bibtex
-@article{ddagnet,
-  title={DDAG-Net: A novel Dual-Domain Adaptive Decoupling and Arterial Axis-Guided Network for Pulmonary Embolism Detection Segmentation},
-  author={},
-  journal={},
-  year={2026}
-}
-⭐ Acknowledgements
-This project is built upon the PyTorch deep learning framework and open-source medical image segmentation projects.
+- Input channels: `1`
+- Output classes: `1`
+- Encoder blocks: `[2, 3, 3, 3]`
+- Decoder blocks: `[2, 2, 2]`
+- Encoder filters: `[64, 96, 128, 128]`
+- Stem filters: `32`
+- ASPP filters: `32`
+- Normalization: `groupnorm`
+
+---
+
+## 📦 Code Availability
+
+This repository currently serves as the project page for RSMIA-Net.
+
+> 🚧 Full training scripts, pretrained weights, dataset preprocessing code, and inference utilities can be released according to the final project plan.
+
+---
+
+## ⭐ Acknowledgements
+
+This project is built upon the PyTorch deep learning framework and open-source medical image segmentation components.
 
 Special thanks to the medical imaging research community for their valuable contributions.
-
-text
-
