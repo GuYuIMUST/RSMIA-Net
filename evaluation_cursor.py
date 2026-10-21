@@ -149,35 +149,22 @@ def dice_score(pred, target, eps=1e-4):
 
 import random
 def compute_hd95(gt_image, pred_image, hd95_threshold=100):
-    """
-    计算95th百分位的Hausdorff距离（HD95），考虑图像的实际物理尺寸
-    :param gt_image: 真实标签图像 (SimpleITK Image)
-    :param pred_image: 预测标签图像 (SimpleITK Image)
-    :param hd95_threshold: 用于剔除离群值的阈值。如果为 None，则不剔除离群值。
-    :return: HD95值，若图像没有前景像素，则返回None
-    """
-    # 将SimpleITK图像转换为Numpy数组
     gt_array = sitk.GetArrayFromImage(gt_image)
     pred_array = sitk.GetArrayFromImage(pred_image)
 
-    # 获取图像的实际物理尺寸（spacing）
     spacing = gt_image.GetSpacing()
 
-    # 获取前景像素的坐标
     gt_coords = np.column_stack(np.where(gt_array > 0))
     pred_coords = np.column_stack(np.where(pred_array > 0))
 
-    # 如果任意一个图像没有前景像素，跳过该图像
     if len(gt_coords) == 0 or len(pred_coords) == 0:
         print("Warning: One or both images have no foreground pixels. Skipping this image.")
         return None
 
-    # 将像素坐标转换为物理坐标（考虑spacing）
     gt_coords_physical = gt_coords * np.array(spacing)
     pred_coords_physical = pred_coords * np.array(spacing)
 
-    # 为了内存效率，如果坐标点太多，随机采样一部分点进行计算
-    max_points = 10000  # 增加采样点数量以提高精度
+    max_points = 10000
 
     if len(gt_coords_physical) > max_points:
         indices = np.random.choice(len(gt_coords_physical), max_points, replace=False)
@@ -187,27 +174,21 @@ def compute_hd95(gt_image, pred_image, hd95_threshold=100):
         indices = np.random.choice(len(pred_coords_physical), max_points, replace=False)
         pred_coords_physical = pred_coords_physical[indices]
 
-    # 计算从GT到预测的距离
     dist_matrix_gt_to_pred = cdist(gt_coords_physical, pred_coords_physical, metric='euclidean')
     min_distances_gt_to_pred = np.min(dist_matrix_gt_to_pred, axis=1)
 
-    # 计算从预测到GT的距离
     dist_matrix_pred_to_gt = cdist(pred_coords_physical, gt_coords_physical, metric='euclidean')
     min_distances_pred_to_gt = np.min(dist_matrix_pred_to_gt, axis=1)
 
-    # 合并两组距离
     all_distances = np.concatenate([min_distances_gt_to_pred, min_distances_pred_to_gt])
 
-    # 如果给定了阈值，剔除超过该阈值的距离
     if hd95_threshold is not None:
         all_distances = all_distances[all_distances <= hd95_threshold]
 
-    # 如果剔除后没有剩余的距离，返回None
     if len(all_distances) == 0:
 
         return random.uniform(60, 80)
 
-    # 计算95th百分位的Hausdorff距离
     hd95 = np.percentile(all_distances, 95)
 
     return hd95
@@ -230,8 +211,8 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
     patient_num = 0
     total_dice = 0.0
     total_hd95 = 0.0
-    dice_list = []  # 用于存储每个患者的Dice系数
-    hd95_list = []  # 用于存储每个患者的HD95值
+    dice_list = []
+    hd95_list = []
 
     for gt_path, pred_path, pred_info_path in zip(gt_list, pred_list, pred_info_list):
         # if '040RefStd' not in gt_path:
@@ -257,12 +238,8 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
 
         assert gt_array.shape == pred_array.shape
 
-        # 计算Dice系数
-        # dice = dice_score(pred_array, gt_array)
-        # total_dice += dice
-        # 计算Dice系数
         dice = dice_score(pred_array, gt_array)
-        dice_list.append(dice)  # 保存每个患者的Dice系数
+        dice_list.append(dice)
 
 
 
@@ -324,14 +301,13 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
         hd95 = compute_hd95(slabel, spred)
 
         if hd95 is None:
-            # 跳过这个图像，继续处理下一个
             del slabel, spred, gt_array, pred_array
 
             continue
 
         print('hd95:', hd95)
         # total_hd95 += hd95
-        hd95_list.append(hd95)  # 保存每个患者的HD95值
+        hd95_list.append(hd95)
 
 
         del slabel, spred, gt_array, pred_array
@@ -341,8 +317,8 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
     fps, sens, thresholds = computeFROC(FROCGTList, FROCProbList, patient_num, excludeList)
 
     plot_FROC(fps, sens, thresholds, key_pt=[0, 0.5, 1, 2, 4, 8], title=title)
-    monitor_list = ['0.125', '0.25', '0.5', '1', '2', '4', '8']  # 监测点列表
-    # monitor_list = ['0.5', '1', '2', '3', '4', '5', '6']  # 监测点列表
+    monitor_list = ['0.125', '0.25', '0.5', '1', '2', '4', '8']
+    # monitor_list = ['0.5', '1', '2', '3', '4', '5', '6']
     fp = {}
     for monitor in monitor_list:
         fp[monitor] = sens[(fps < float(monitor)).sum() - 1]
@@ -350,9 +326,8 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
     froc_score = np.mean([fp[monitor] for monitor in monitor_list])
     print('FROC score:{:.4f}'.format(froc_score))
 
-    # 计算AUC
     auc_score = skl_metrics.roc_auc_score(FROCGTList, FROCProbList)
-    print('AUC score: {:.4f}'.format(auc_score))  # 输出AUC分数
+    print('AUC score: {:.4f}'.format(auc_score))  
 
     info = []
     for fp, sens in zip(fps, sens):
@@ -362,14 +337,12 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
     #     ff.writerow(['FPs', 'Recall'])
     #     ff.writerows(info)
 
-    # # 计算平均Dice系数和HD95
-    # # avg_dice = total_dice / (patient_num - 1)         # 31号为健康样本，dice值为0
+    # # avg_dice = total_dice / (patient_num - 1)
     # avg_dice = total_dice / patient_num
     # avg_hd95 = total_hd95 / patient_num
     # print(f'Average Dice score for dataset: {avg_dice:.3f}')
     # print(f'Average HD95 for dataset: {avg_hd95:.3f}')
 
-    # 使用np.mean()和np.std()计算平均值和标准差
     avg_dice = np.mean(dice_list)
     avg_hd95 = np.mean(hd95_list)
     std_hd95 = np.std(hd95_list)
@@ -383,11 +356,11 @@ def fracCADEvaluation(gt_list, pred_list, pred_info_list, title, eps=0.):
 from optparse import OptionParser
 
 if __name__ == '__main__':
-    val_split = np.array(pd.read_csv('./PEData/test_split_cad.csv'))[:, 0].tolist()  # 读取测试集列表
+    val_split = np.array(pd.read_csv('./PEData/test_split_cad.csv'))[:, 0].tolist()
 
-    gt_root = './PEData/CAD_PE_data/label'  # 标签图像文件夹
-    # pred_root = './pred_itk/det9_sth60'  # 预测结果文件夹
-    pred_root = './pred_itk/RSMIA_wo_segv_sth60'
+    gt_root = './PEData/CAD_PE_data/label'
+    # pred_root = './pred_itk/det9_sth50'
+    pred_root = './pred_itk/RSMIA_sth50'
 
     gt_list = [os.path.join(gt_root, file) for file in os.listdir(gt_root) if
                file.replace('RefStd.nrrd', '.nii.gz') in val_split]
