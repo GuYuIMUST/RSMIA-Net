@@ -211,12 +211,6 @@ On the **CAD-PE dataset**, RSMIA-Net achieves strong performance in both PE dete
 - FROC score: `0.798`
 - AUC: `0.862`
 
-### PE Segmentation
-
-- Dice coefficient: `89.7%`
-
-These results indicate that RSMIA-Net improves PE localization accuracy and detection sensitivity compared with other state-of-the-art methods.
-
 ---
 
 ## 📂 Project Structure
