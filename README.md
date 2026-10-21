@@ -312,12 +312,9 @@ python inference.py \
 
 The following metrics are used or commonly reported for PE detection and segmentation:
 
-- Dice Similarity Coefficient (DSC)
 - Sensitivity
 - FROC score
 - AUC
-- Intersection over Union (IoU)
-- 95% Hausdorff Distance (HD95)
 
 ---
 
