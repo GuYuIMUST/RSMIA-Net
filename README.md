@@ -320,7 +320,7 @@ The following metrics are used or commonly reported for PE detection and segment
 
 ## 🗃️ Dataset
 
-RSMIA-Net is designed for **CT pulmonary angiography (CTPA)** datasets, including CAD-PE style PE segmentation and detection data.
+RSMIA-Net is designed for **CT pulmonary angiography (CTPA)** datasets, including CAD-PE and FUMPE style PE segmentation and detection data.
 
 Typical preprocessing includes:
 
