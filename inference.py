@@ -5,7 +5,7 @@ import os
 import torch.distributed
 import numpy as np
 import matplotlib.pyplot as plt
-from models import AANet_total_aspp4
+from models import RSMIANet
 # from models import TASPP
 import SimpleITK as sitk
 from scipy.ndimage import binary_dilation, binary_closing
@@ -321,38 +321,25 @@ if __name__ == '__main__':
                       dest='thresh',
                       default=0.5,
                       help='thresh')
-    # 添加一个命令行参数，用于指定阈值，默认为0.5
 
     (options, args) = parser.parse_args()
-    # 解析命令行参数，并将解析结果赋值给options和args变量
 
     os.environ["CUDA_VISIBLE_DEVICES"] = options.gpu
-    # 设置CUDA_VISIBLE_DEVICES环境变量，指定使用的GPU
 
     model_path = './save_models/' + options.model + '.pth'
-    # model_path = './save_models/' + options.model + 'pth'
-    # model_path = './save/eval-EXP-20250405-100810/model_epoch_495.pth'
-    # 构建模型路径，根据指定的模型名称
-    # 训练时调用的aanet几，单独运行这个文件时记得更改
 
-    model =AANet_total_aspp4.Net(n_filters=[64, 96, 128, 160], en_blocks=[2, 3, 3, 3], de_blocks=[1, 2, 2],
+    model =RSMIANet.Net(n_filters=[64, 96, 128, 160], en_blocks=[2, 3, 3, 3], de_blocks=[1, 2, 2],
                       stem_filters=16, aspp_filters=32)
 
     print(model_path)
-    # 打印模型路径
 
-    model.load_state_dict(torch.load(model_path), strict=False)
-    # 加载预训练模型的参数
+    model.load_state_dict(torch.load(model_path), strict=True)
 
     # model = nn.parallel.DataParallel(model)
-    # 将模型包装成DataParallel，以支持多GPU训练
 
     model.to(DEVICE)
-    # 将模型移动到指定的设备（GPU或CPU）
 
     model.eval()
-    # 将模型设置为评估模式
 
     test_model(model, './PEData/test_split_fum.csv', options.name, seg_thresh=options.thresh,
                hu_low=-100, hu_high=500)
-    # 调用测试函数，传入模型、测试数据集路径、训练运行名称、分割阈值等参数进行测试
