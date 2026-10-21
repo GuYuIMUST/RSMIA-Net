@@ -1,8 +1,8 @@
 # RSMIA-Net
 
-**RSMIA-Net: Residual Skip-enhanced Network with Multi-dimensional Interactive Attention for Pulmonary Embolism Detection and Segmentation**
+**RSMIA-Net: Residual Skip-enhanced Network with Multi-dimensional Interactive Attention for Pulmonary Embolism Detection**
 
-> A 3D pulmonary embolism segmentation and detection framework with attention-guided residual skip enhancement, multi-dimensional interactive attention, context-detail balanced ASPP fusion, and Dual Attention Transformer bottleneck modeling.
+> A 3D pulmonary embolism detection framework with attention-guided residual skip enhancement, multi-dimensional interactive attention, context-detail balanced ASPP fusion, and Dual Attention Transformer bottleneck modeling.
 
 ---
 
